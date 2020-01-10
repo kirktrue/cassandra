@@ -1045,6 +1045,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
         public Collection<SSTableReader> flushMemtable(Memtable memtable, boolean flushNonCf2i)
         {
+            logger.warn("Starting {}.{}", getClass().getSimpleName(), "flushMemtable");
+
             if (memtable.isClean() || truncate)
             {
                 memtable.cfs.replaceFlushed(memtable, Collections.emptyList());
@@ -1256,6 +1258,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     public void apply(PartitionUpdate update, UpdateTransaction indexer, OpOrder.Group opGroup, CommitLogPosition commitLogPosition)
 
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "apply");
+
         long start = System.nanoTime();
         try
         {
