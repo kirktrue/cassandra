@@ -263,6 +263,7 @@ public class CommitLog implements CommitLogMBean
      */
     public CommitLogPosition add(Mutation mutation) throws CDCWriteException
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "add");
         assert mutation != null;
 
         try (DataOutputBuffer dob = DataOutputBuffer.scratchBuffer.get())
