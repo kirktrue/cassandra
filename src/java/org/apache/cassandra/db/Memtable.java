@@ -255,6 +255,7 @@ public class Memtable implements Comparable<Memtable>
      */
     long put(PartitionUpdate update, UpdateTransaction indexer, OpOrder.Group opGroup)
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "put");
         AtomicBTreePartition previous = partitions.get(update.partitionKey());
 
         long initialSize = 0;
@@ -450,6 +451,9 @@ public class Memtable implements Comparable<Memtable>
         private void writeSortedContents()
         {
             logger.info("Writing {}, flushed range = ({}, {}]", Memtable.this.toString(), from, to);
+            logger.warn("Starting {}.{}", getClass().getSimpleName(), "writeSortedContents");
+            if (logger.isDebugEnabled())
+                logger.debug("Writing {}, flushed range = ({}, {}]", Memtable.this.toString(), from, to);
 
             boolean trackContention = logger.isTraceEnabled();
             int heavilyContendedRowCount = 0;

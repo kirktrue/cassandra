@@ -161,14 +161,26 @@ public abstract class AbstractCommitLogService
 
         boolean sync()
         {
+            logger.warn("Starting {}.{}", getClass().getSimpleName(), "sync");
             // always run once after shutdown signalled
             boolean shutdownRequested = shutdown;
 
             try
             {
+                logger.warn("{}.{} - shutdownRequested: {}, lastSyncedAt: {}, syncIntervalNanos: {}, syncRequested: {}", getClass().getSimpleName(), "sync",
+                            shutdownRequested,
+                            lastSyncedAt,
+                            syncIntervalNanos,
+                            syncRequested);
+
                 // sync and signal
                 long pollStarted = clock.now();
                 boolean flushToDisk = lastSyncedAt + syncIntervalNanos <= pollStarted || shutdownRequested || syncRequested;
+
+                logger.warn("{}.{} - pollStarted: {}, flushToDisk: {}", getClass().getSimpleName(), "sync",
+                            pollStarted,
+                            flushToDisk);
+
                 if (flushToDisk)
                 {
                     // in this branch, we want to flush the commit log to disk

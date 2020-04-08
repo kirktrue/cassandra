@@ -32,6 +32,9 @@ import java.util.zip.CRC32;
 import com.google.common.annotations.VisibleForTesting;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.codahale.metrics.Timer;
 import org.apache.cassandra.config.*;
 import org.apache.cassandra.db.Mutation;
@@ -56,6 +59,9 @@ import static org.apache.cassandra.utils.FBUtilities.updateChecksumInt;
  */
 public abstract class CommitLogSegment
 {
+
+    protected static final Logger logger = LoggerFactory.getLogger(CommitLogSegment.class);
+
     private final static long idBase;
 
     private CDCState cdcState = CDCState.PERMITTED;
@@ -313,15 +319,27 @@ public abstract class CommitLogSegment
      */
     synchronized void sync(boolean flush)
     {
+        logger.warn("Starting {}.{} - flush: {}", getClass().getSimpleName(), "sync", flush);
+
         if (!headerWritten)
             throw new IllegalStateException("commit log header has not been written");
         assert lastMarkerOffset >= lastSyncedOffset : String.format("commit log segment positions are incorrect: last marked = %d, last synced = %d",
                                                                     lastMarkerOffset, lastSyncedOffset);
         // check we have more work to do
+        logger.warn("{}.{} - allocatePosition.get(): {}, lastMarkerOffset: {}, SYNC_MARKER_SIZE: {}", getClass().getSimpleName(), "sync", allocatePosition.get(), lastMarkerOffset, SYNC_MARKER_SIZE);
+        logger.warn("{}.{} - lastSyncedOffset: {}, lastMarkerOffset: {}", getClass().getSimpleName(), "sync", lastSyncedOffset, lastMarkerOffset);
+
         final boolean needToMarkData = allocatePosition.get() > lastMarkerOffset + SYNC_MARKER_SIZE;
         final boolean hasDataToFlush = lastSyncedOffset != lastMarkerOffset;
+
+        logger.warn("{}.{} - needToMarkData: {}, needToMarkData: {}", getClass().getSimpleName(), "sync", needToMarkData, hasDataToFlush);
+
         if (!(needToMarkData || hasDataToFlush))
+        {
+            logger.warn("{}.{} - returning from sync", getClass().getSimpleName(), "sync");
             return;
+        }
+
         // Note: Even if the very first allocation of this sync section failed, we still want to enter this
         // to ensure the segment is closed. As allocatePosition is set to 1 beyond the capacity of the buffer,
         // this will always be entered when a mutation allocation has been attempted after the marker allocation
@@ -331,6 +349,9 @@ public abstract class CommitLogSegment
         boolean close = false;
         int startMarker = lastMarkerOffset;
         int nextMarker, sectionEnd;
+
+        logger.warn("Starting {}.{} - needToMarkData: {}", getClass().getSimpleName(), "sync", needToMarkData);
+
         if (needToMarkData)
         {
             // Allocate a new sync marker; this is both necessary in itself, but also serves to demarcate
