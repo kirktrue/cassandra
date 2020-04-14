@@ -70,6 +70,7 @@ public abstract class FileDirectSegment extends CommitLogSegment
     {
         try
         {
+            logger.warn("Starting {}.{}", getClass().getSimpleName(), "flush");
             SyncUtil.force(channel, true);
         }
         catch (Exception e)

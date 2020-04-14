@@ -522,14 +522,25 @@ public abstract class AbstractCommitLogSegmentManager
      */
     public void sync(boolean flush) throws IOException
     {
+        logger.warn("Starting {}.{} - flush: {}", getClass().getSimpleName(), "sync", flush);
         CommitLogSegment current = allocatingFrom;
+        logger.warn("current.id: {}", current.id);
+
         for (CommitLogSegment segment : getActiveSegments())
         {
+            logger.warn("segment.id: {}", segment.id);
+
             // Do not sync segments that became active after sync started.
             if (segment.id > current.id)
+            {
+                logger.warn("ouch");
                 return;
+            }
+
             segment.sync(flush);
         }
+
+        logger.warn("Finished {}.{}", getClass().getSimpleName(), "sync");
     }
 
     /**
