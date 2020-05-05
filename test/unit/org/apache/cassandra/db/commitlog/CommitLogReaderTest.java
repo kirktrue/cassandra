@@ -27,6 +27,9 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.config.Config;
@@ -58,8 +61,18 @@ public class CommitLogReaderTest extends CQLTester
     @Test
     public void testReadAll() throws Throwable
     {
-        int samples = 1000;
+        int samples = 10;
+
+        Thread.sleep(5000);
+
+        for (int i = 0 ; i < samples * 2 ; i++)
+            logger.warn("------------------------------------------------------------------------------------------");
+
         populateData(samples);
+
+        for (int i = 0 ; i < samples * 2 ; i++)
+            logger.warn("------------------------------------------------------------------------------------------");
+
         ArrayList<File> toCheck = getCommitLogs();
 
         CommitLogReader reader = new CommitLogReader();
@@ -69,7 +82,7 @@ public class CommitLogReaderTest extends CQLTester
             reader.readCommitLogSegment(testHandler, f, CommitLogReader.ALL_MUTATIONS, false);
 
         Assert.assertEquals("Expected 1000 seen mutations, got: " + testHandler.seenMutationCount(),
-                            1000, testHandler.seenMutationCount());
+                            10, testHandler.seenMutationCount());
 
         confirmReadOrder(testHandler, 0);
     }
@@ -249,19 +262,33 @@ public class CommitLogReaderTest extends CQLTester
     {
         Assert.assertEquals("entryCount must be an even number.", 0, entryCount % 2);
 
+        logger.warn("--- CREATE TABLE START ---------------------------------------------------------------------------------------");
         createTable("CREATE TABLE %s (idx INT, data TEXT, PRIMARY KEY(idx));");
+        logger.warn("--- CREATE TABLE STOP  ---------------------------------------------------------------------------------------");
+
         int midpoint = entryCount / 2;
+
+        logger.warn("--- INSERTS START ---------------------------------------------------------------------------------------");
 
         for (int i = 0; i < midpoint; i++) {
             execute("INSERT INTO %s (idx, data) VALUES (?, ?)", i, Integer.toString(i));
         }
 
+        logger.warn("--- INSERTS STOP  ---------------------------------------------------------------------------------------");
+
         CommitLogPosition result = CommitLog.instance.getCurrentPosition();
+
+        logger.warn("--- MORE INSERTS START ---------------------------------------------------------------------------------------");
 
         for (int i = midpoint; i < entryCount; i++)
             execute("INSERT INTO %s (idx, data) VALUES (?, ?)", i, Integer.toString(i));
 
+        logger.warn("--- MORE INSERTS STOP  ---------------------------------------------------------------------------------------");
+
+        logger.warn("--- FORCE BLOCKING FLUSH START ---------------------------------------------------------------------------------------");
         Keyspace.open(keyspace()).getColumnFamilyStore(currentTable()).forceBlockingFlush();
+        logger.warn("--- FORCE BLOCKING FLUSH STOP  ---------------------------------------------------------------------------------------");
+
         return result;
     }
 }

@@ -526,6 +526,7 @@ public class Keyspace
                                                boolean isDeferrable,
                                                CompletableFuture<?> future)
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "applyInternal");
         if (TEST_FAIL_WRITES && metadata.name.equals(TEST_FAIL_WRITES_KS))
             throw new RuntimeException("Testing write failures");
 

@@ -18,12 +18,17 @@
 
 package org.apache.cassandra.db;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.db.partitions.PartitionUpdate;
 import org.apache.cassandra.index.transactions.UpdateTransaction;
 import org.apache.cassandra.tracing.Tracing;
 
 public class CassandraTableWriteHandler implements TableWriteHandler
 {
+    private static final Logger logger = LoggerFactory.getLogger(CassandraTableWriteHandler.class);
+
     private final ColumnFamilyStore cfs;
 
     public CassandraTableWriteHandler(ColumnFamilyStore cfs)
@@ -35,6 +40,7 @@ public class CassandraTableWriteHandler implements TableWriteHandler
     @SuppressWarnings("resource")
     public void write(PartitionUpdate update, WriteContext context, UpdateTransaction updateTransaction)
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "write");
         CassandraWriteContext ctx = CassandraWriteContext.fromContext(context);
         Tracing.trace("Adding to {} memtable", update.metadata().name);
         cfs.apply(update, updateTransaction, ctx.getGroup(), ctx.getPosition());

@@ -27,6 +27,9 @@ import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.commitlog.CommitLog;
 import org.apache.cassandra.db.partitions.PartitionUpdate;
@@ -46,6 +49,8 @@ import static org.apache.cassandra.utils.MonotonicClock.approxTime;
 
 public class Mutation implements IMutation
 {
+    protected static final Logger logger = LoggerFactory.getLogger(Mutation.class);
+
     public static final MutationSerializer serializer = new MutationSerializer();
 
     // todo this is redundant
@@ -217,6 +222,7 @@ public class Mutation implements IMutation
      */
     public void apply()
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "apply");
         apply(Keyspace.open(keyspaceName).getMetadata().params.durableWrites);
     }
 

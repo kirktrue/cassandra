@@ -612,6 +612,8 @@ public abstract class ModificationStatement implements CQLStatement
 
     public ResultMessage executeLocally(QueryState queryState, QueryOptions options) throws RequestValidationException, RequestExecutionException
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "executeLocally");
+
         return hasConditions()
                ? executeInternalWithCondition(queryState, options)
                : executeInternalWithoutCondition(queryState, options, System.nanoTime());
@@ -620,6 +622,7 @@ public abstract class ModificationStatement implements CQLStatement
     public ResultMessage executeInternalWithoutCondition(QueryState queryState, QueryOptions options, long queryStartNanoTime)
     throws RequestValidationException, RequestExecutionException
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "executeInternalWithoutCondition");
         long timestamp = options.getTimestamp(queryState);
         int nowInSeconds = options.getNowInSeconds(queryState);
         for (IMutation mutation : getMutations(options, true, timestamp, nowInSeconds, queryStartNanoTime))
@@ -687,6 +690,8 @@ public abstract class ModificationStatement implements CQLStatement
                           int nowInSeconds,
                           long queryStartNanoTime)
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "addUpdates");
+
         List<ByteBuffer> keys = buildPartitionKeyNames(options);
 
         if (hasSlices())

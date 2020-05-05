@@ -18,6 +18,9 @@
 
 package org.apache.cassandra.db;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.db.commitlog.CommitLog;
 import org.apache.cassandra.db.commitlog.CommitLogPosition;
 import org.apache.cassandra.exceptions.RequestExecutionException;
@@ -26,6 +29,8 @@ import org.apache.cassandra.utils.concurrent.OpOrder;
 
 public class CassandraKeyspaceWriteHandler implements KeyspaceWriteHandler
 {
+    private static final Logger logger = LoggerFactory.getLogger(CassandraKeyspaceWriteHandler.class);
+
     private final Keyspace keyspace;
 
     public CassandraKeyspaceWriteHandler(Keyspace keyspace)
@@ -37,6 +42,7 @@ public class CassandraKeyspaceWriteHandler implements KeyspaceWriteHandler
     @SuppressWarnings("resource") // group is closed when CassandraWriteContext is closed
     public WriteContext beginWrite(Mutation mutation, boolean makeDurable) throws RequestExecutionException
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "beginWrite");
         OpOrder.Group group = null;
         try
         {

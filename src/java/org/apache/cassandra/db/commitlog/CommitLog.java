@@ -90,6 +90,7 @@ public class CommitLog implements CommitLogMBean
     @VisibleForTesting
     CommitLog(CommitLogArchiver archiver, Function<CommitLog, AbstractCommitLogSegmentManager> segmentManagerProvider)
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "<init>");
         this.configuration = new Configuration(DatabaseDescriptor.getCommitLogCompression(),
                                                DatabaseDescriptor.getEncryptionContext());
         DatabaseDescriptor.createAllDirectories();
@@ -123,6 +124,7 @@ public class CommitLog implements CommitLogMBean
      */
     synchronized public CommitLog start()
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "start");
         if (started)
             return this;
 
@@ -240,7 +242,10 @@ public class CommitLog implements CommitLogMBean
      */
     public void sync(boolean flush) throws IOException
     {
+        logger.warn("Starting {}.{} - flush: {}", getClass().getSimpleName(), "sync", flush);
+        logger.warn("traceback", new Exception("traceback"));
         segmentManager.sync(flush);
+        logger.warn("Finished {}.{}", getClass().getSimpleName(), "sync");
     }
 
     /**
@@ -259,6 +264,7 @@ public class CommitLog implements CommitLogMBean
      */
     public CommitLogPosition add(Mutation mutation) throws CDCWriteException
     {
+        logger.warn("Starting {}.{}", getClass().getSimpleName(), "add");
         assert mutation != null;
 
         mutation.validateSize(MessagingService.current_version, ENTRY_OVERHEAD_SIZE);

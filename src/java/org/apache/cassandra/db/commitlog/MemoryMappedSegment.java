@@ -84,6 +84,8 @@ public class MemoryMappedSegment extends CommitLogSegment
     {
         try
         {
+            logger.warn("Starting {}.{}", getClass().getSimpleName(), "flush");
+            logger.warn("In {}.{}, path: {}", getClass().getSimpleName(), "flush", getPath());
             SyncUtil.force((MappedByteBuffer) buffer);
         }
         catch (Exception e) // MappedByteBuffer.force() does not declare IOException but can actually throw it
