@@ -18,6 +18,9 @@
 
 package org.apache.cassandra.cql3;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CharStream;
 import org.antlr.runtime.CommonTokenStream;
@@ -30,6 +33,8 @@ import org.apache.cassandra.exceptions.SyntaxException;
  */
 public final class CQLFragmentParser
 {
+
+    private static final Logger logger = LoggerFactory.getLogger(CQLFragmentParser.class);
 
     @FunctionalInterface
     public interface CQLParserFunction<R>
@@ -62,6 +67,8 @@ public final class CQLFragmentParser
      */
     public static <R> R parseAnyUnhandled(CQLParserFunction<R> parserFunction, String input) throws RecognitionException
     {
+        logger.warn("input: {}", input);
+
         // Lexer and parser
         ErrorCollector errorCollector = new ErrorCollector(input);
         CharStream stream = new ANTLRStringStream(input);

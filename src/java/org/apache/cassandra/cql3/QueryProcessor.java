@@ -300,13 +300,18 @@ public class QueryProcessor implements QueryHandler
     {
         Prepared prepared = internalStatements.get(query);
         if (prepared != null)
+        {
+            logger.warn("prepared.statement is returned from cache, yo!: {}", prepared.statement);
             return prepared;
+        }
 
         // Note: if 2 threads prepare the same query, we'll live so don't bother synchronizing
         CQLStatement statement = parseStatement(query, internalQueryState().getClientState());
+        logger.warn("prepareInternal - statement, step 3: {}", statement);
         statement.validate(internalQueryState().getClientState());
 
         prepared = new Prepared(statement);
+        logger.warn("prepareInternal - statement, step 4: {}", statement);
         internalStatements.put(query, prepared);
         return prepared;
     }
@@ -528,8 +533,13 @@ public class QueryProcessor implements QueryHandler
         if (statement instanceof QualifiedStatement)
             ((QualifiedStatement) statement).setKeyspace(clientState);
 
+        logger.warn("getStatement - statement class: {}", statement.getClass());
+        logger.warn("getStatement - statement, step 1: {}", statement);
+
         Tracing.trace("Preparing statement");
-        return statement.prepare(clientState);
+        CQLStatement statementReturned = statement.prepare(clientState);
+        logger.warn("getStatement - statementReturned, step 2: {}", statementReturned);
+        return statementReturned;
     }
 
     public static <T extends CQLStatement.Raw> T parseStatement(String queryStr, Class<T> klass, String type) throws SyntaxException

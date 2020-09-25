@@ -63,15 +63,9 @@ public class CommitLogReaderTest extends CQLTester
     {
         int samples = 10;
 
-        Thread.sleep(5000);
-
-        for (int i = 0 ; i < samples * 2 ; i++)
-            logger.warn("------------------------------------------------------------------------------------------");
+//        Thread.sleep(1000);
 
         populateData(samples);
-
-        for (int i = 0 ; i < samples * 2 ; i++)
-            logger.warn("------------------------------------------------------------------------------------------");
 
         ArrayList<File> toCheck = getCommitLogs();
 
@@ -262,32 +256,28 @@ public class CommitLogReaderTest extends CQLTester
     {
         Assert.assertEquals("entryCount must be an even number.", 0, entryCount % 2);
 
-        logger.warn("--- CREATE TABLE START ---------------------------------------------------------------------------------------");
         createTable("CREATE TABLE %s (idx INT, data TEXT, PRIMARY KEY(idx));");
-        logger.warn("--- CREATE TABLE STOP  ---------------------------------------------------------------------------------------");
 
         int midpoint = entryCount / 2;
 
-        logger.warn("--- INSERTS START ---------------------------------------------------------------------------------------");
-
         for (int i = 0; i < midpoint; i++) {
+            logger.warn("------------------------------------------------------------------------------------------");
             execute("INSERT INTO %s (idx, data) VALUES (?, ?)", i, Integer.toString(i));
+            logger.warn("------------------------------------------------------------------------------------------");
         }
-
-        logger.warn("--- INSERTS STOP  ---------------------------------------------------------------------------------------");
 
         CommitLogPosition result = CommitLog.instance.getCurrentPosition();
 
-        logger.warn("--- MORE INSERTS START ---------------------------------------------------------------------------------------");
-
         for (int i = midpoint; i < entryCount; i++)
+        {
+            logger.warn("------------------------------------------------------------------------------------------");
             execute("INSERT INTO %s (idx, data) VALUES (?, ?)", i, Integer.toString(i));
+            logger.warn("------------------------------------------------------------------------------------------");
+        }
 
-        logger.warn("--- MORE INSERTS STOP  ---------------------------------------------------------------------------------------");
-
-        logger.warn("--- FORCE BLOCKING FLUSH START ---------------------------------------------------------------------------------------");
         Keyspace.open(keyspace()).getColumnFamilyStore(currentTable()).forceBlockingFlush();
-        logger.warn("--- FORCE BLOCKING FLUSH STOP  ---------------------------------------------------------------------------------------");
+
+        logger.warn("populateData - result: {}", result);
 
         return result;
     }

@@ -1059,6 +1059,7 @@ public abstract class CQLTester
         {
             if (logger.isTraceEnabled())
                 logger.trace("Executing: {} with values {}", query, formatAllValues(values));
+            logger.warn("reusePrepared: {}", reusePrepared);
             if (reusePrepared)
             {
                 rs = QueryProcessor.executeInternal(query, transformValues(values));

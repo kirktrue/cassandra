@@ -243,7 +243,6 @@ public class CommitLog implements CommitLogMBean
     public void sync(boolean flush) throws IOException
     {
         logger.warn("Starting {}.{} - flush: {}", getClass().getSimpleName(), "sync", flush);
-        logger.warn("traceback", new Exception("traceback"));
         segmentManager.sync(flush);
         logger.warn("Finished {}.{}", getClass().getSimpleName(), "sync");
     }
