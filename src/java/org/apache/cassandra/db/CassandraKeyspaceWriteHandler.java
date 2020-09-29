@@ -54,6 +54,7 @@ public class CassandraKeyspaceWriteHandler implements KeyspaceWriteHandler
             {
                 Tracing.trace("Appending to commitlog");
                 position = CommitLog.instance.add(mutation);
+                logger.warn("{}.{} - mutation: {}, position: {}", getClass().getSimpleName(), "beginWrite", mutation.getKeyspaceName(), position);
             }
             return new CassandraWriteContext(group, position);
         }
