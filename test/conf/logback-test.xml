@@ -64,6 +64,9 @@
   <logger name="kirk.commitlog" level="INFO"/>
   <logger name="kirk.commitlog.test" level="DEBUG"/>
 
+  <logger name="kirk.db" level="INFO"/>
+  <logger name="kirk.db.test" level="DEBUG"/>
+
   <logger name="kirk.cql" level="INFO"/>
   <logger name="kirk.cql.test" level="DEBUG"/>
 

@@ -27,6 +27,7 @@ import org.apache.cassandra.tracing.Tracing;
 
 public class CassandraTableWriteHandler implements TableWriteHandler
 {
+    private static final Logger dbLogger = LoggerFactory.getLogger("kirk.db");
     private static final Logger logger = LoggerFactory.getLogger(CassandraTableWriteHandler.class);
 
     private final ColumnFamilyStore cfs;
@@ -40,9 +41,10 @@ public class CassandraTableWriteHandler implements TableWriteHandler
     @SuppressWarnings("resource")
     public void write(PartitionUpdate update, WriteContext context, UpdateTransaction updateTransaction)
     {
-        logger.warn("Starting {}.{}", getClass().getSimpleName(), "write");
+        dbLogger.trace("{}.{} - starting...", getClass().getSimpleName(), "write");
         CassandraWriteContext ctx = CassandraWriteContext.fromContext(context);
         Tracing.trace("Adding to {} memtable", update.metadata().name);
         cfs.apply(update, updateTransaction, ctx.getGroup(), ctx.getPosition());
+        dbLogger.trace("{}.{} - finished", getClass().getSimpleName(), "write");
     }
 }

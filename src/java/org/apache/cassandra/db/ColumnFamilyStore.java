@@ -96,6 +96,7 @@ import static org.apache.cassandra.utils.Throwables.merge;
 
 public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 {
+    private static final Logger dbLogger = LoggerFactory.getLogger("kirk.db");
     private static final Logger logger = LoggerFactory.getLogger(ColumnFamilyStore.class);
 
     /*
