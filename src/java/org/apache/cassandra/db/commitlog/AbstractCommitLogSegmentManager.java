@@ -50,6 +50,8 @@ import static org.apache.cassandra.db.commitlog.CommitLogSegment.Allocation;
  */
 public abstract class AbstractCommitLogSegmentManager
 {
+    private static final Logger commitLogLogger = LoggerFactory.getLogger("kirk.commitlog");
+
     static final Logger logger = LoggerFactory.getLogger(AbstractCommitLogSegmentManager.class);
 
     /**
@@ -101,6 +103,8 @@ public abstract class AbstractCommitLogSegmentManager
 
     void start()
     {
+        commitLogLogger.trace("{}.{} - starting...", getClass().getSimpleName(), "start");
+
         // The run loop for the manager thread
         Runnable runnable = new WrappedRunnable()
         {
@@ -108,48 +112,57 @@ public abstract class AbstractCommitLogSegmentManager
             {
                 while (!shutdown)
                 {
+                    commitLogLogger.trace("{}.{} - starting while loop...", getClass().getName(), "runMayThrow");
+
                     try
                     {
-                        assert availableSegment == null;
-                        logger.trace("No segments in reserve; creating a fresh one");
-                        logger.warn("{}.{} - about to create a new segment...", getClass().getName(), "start");
-                        availableSegment = createSegment();
-                        if (shutdown)
+                        try
                         {
-                            // If shutdown() started and finished during segment creation, we are now left with a
-                            // segment that no one will consume. Discard it.
-                            discardAvailableSegment();
-                            return;
+                            assert availableSegment == null;
+                            logger.trace("No segments in reserve; creating a fresh one");
+                            commitLogLogger.debug("{}.{} - about to create a new segment...", getClass().getName(), "runMayThrow");
+                            availableSegment = createSegment();
+                            if (shutdown)
+                            {
+                                // If shutdown() started and finished during segment creation, we are now left with a
+                                // segment that no one will consume. Discard it.
+                                discardAvailableSegment();
+                                return;
+                            }
+
+                            segmentPrepared.signalAll();
+                            Thread.yield();
+
+                            if (availableSegment == null && !atSegmentBufferLimit())
+                                // Writing threads need another segment now.
+                                continue;
+
+                            // Writing threads are not waiting for new segments, we can spend time on other tasks.
+                            // flush old Cfs if we're full
+                            logger.debug("{}.{} - before maybeFlushToReclaim, availableSegment: {}", getClass().getName(), "runMayThrow", availableSegment);
+                            maybeFlushToReclaim();
+                            logger.debug("{}.{} -  after maybeFlushToReclaim, availableSegment: {}", getClass().getName(), "runMayThrow", availableSegment);
+                        }
+                        catch (Throwable t)
+                        {
+                            if (!CommitLog.handleCommitError("Failed managing commit log segments", t))
+                                return;
+                            // sleep some arbitrary period to avoid spamming CL
+                            Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+
+                            // If we offered a segment, wait for it to be taken before reentering the loop.
+                            // There could be a new segment in next not offered, but only on failure to discard it while
+                            // shutting down-- nothing more can or needs to be done in that case.
                         }
 
-                        segmentPrepared.signalAll();
-                        Thread.yield();
-
-                        if (availableSegment == null && !atSegmentBufferLimit())
-                            // Writing threads need another segment now.
-                            continue;
-
-                        // Writing threads are not waiting for new segments, we can spend time on other tasks.
-                        // flush old Cfs if we're full
-                        logger.warn("{}.{} - before maybeFlushToReclaim, availableSegment: {}", getClass().getName(), "start", availableSegment);
-                        maybeFlushToReclaim();
-                        logger.warn("{}.{} -  after maybeFlushToReclaim, availableSegment: {}", getClass().getName(), "start", availableSegment);
+                        logger.debug("{}.{} - before waitOnCondition, availableSegment: {}", getClass().getName(), "runMayThrow", availableSegment);
+                        WaitQueue.waitOnCondition(managerThreadWaitCondition, managerThreadWaitQueue);
+                        logger.debug("{}.{} -  after waitOnCondition, availableSegment: {}", getClass().getName(), "runMayThrow", availableSegment);
                     }
-                    catch (Throwable t)
+                    finally
                     {
-                        if (!CommitLog.handleCommitError("Failed managing commit log segments", t))
-                            return;
-                        // sleep some arbitrary period to avoid spamming CL
-                        Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
-
-                        // If we offered a segment, wait for it to be taken before reentering the loop.
-                        // There could be a new segment in next not offered, but only on failure to discard it while
-                        // shutting down-- nothing more can or needs to be done in that case.
+                        commitLogLogger.trace("{}.{} - finished while loop", getClass().getName(), "runMayThrow");
                     }
-
-                    logger.warn("{}.{} - before waitOnCondition, availableSegment: {}", getClass().getName(), "start", availableSegment);
-                    WaitQueue.waitOnCondition(managerThreadWaitCondition, managerThreadWaitQueue);
-                    logger.warn("{}.{} -  after waitOnCondition, availableSegment: {}", getClass().getName(), "start", availableSegment);
                 }
             }
         };
@@ -171,6 +184,7 @@ public abstract class AbstractCommitLogSegmentManager
 
         // for simplicity, ensure the first segment is allocated before continuing
         advanceAllocatingFrom(null);
+        commitLogLogger.trace("{}.{} - finished", getClass().getSimpleName(), "start");
     }
 
     private boolean atSegmentBufferLimit()
