@@ -1052,111 +1052,119 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
         public Collection<SSTableReader> flushMemtable(Memtable memtable, boolean flushNonCf2i)
         {
-            logger.warn("Starting {}.{}", getClass().getSimpleName(), "flushMemtable");
+            dbLogger.trace("{}.{} - starting...", getClass().getSimpleName(), "flushMemtable");
 
-            if (memtable.isClean() || truncate)
+            try
             {
-                memtable.cfs.replaceFlushed(memtable, Collections.emptyList());
-                reclaim(memtable);
-                return Collections.emptyList();
-            }
 
-            List<Future<SSTableMultiWriter>> futures = new ArrayList<>();
-            long totalBytesOnDisk = 0;
-            long maxBytesOnDisk = 0;
-            long minBytesOnDisk = Long.MAX_VALUE;
-            List<SSTableReader> sstables = new ArrayList<>();
-            try (LifecycleTransaction txn = LifecycleTransaction.offline(OperationType.FLUSH))
-            {
-                List<Memtable.FlushRunnable> flushRunnables = null;
-                List<SSTableMultiWriter> flushResults = null;
-
-                try
+                if (memtable.isClean() || truncate)
                 {
-                    // flush the memtable
-                    flushRunnables = memtable.flushRunnables(txn);
-
-                    for (int i = 0; i < flushRunnables.size(); i++)
-                        futures.add(perDiskflushExecutors[i].submit(flushRunnables.get(i)));
-
-                    /**
-                     * we can flush 2is as soon as the barrier completes, as they will be consistent with (or ahead of) the
-                     * flushed memtables and CL position, which is as good as we can guarantee.
-                     * TODO: SecondaryIndex should support setBarrier(), so custom implementations can co-ordinate exactly
-                     * with CL as we do with memtables/CFS-backed SecondaryIndexes.
-                     */
-                    if (flushNonCf2i)
-                        indexManager.flushAllNonCFSBackedIndexesBlocking();
-
-                    flushResults = Lists.newArrayList(FBUtilities.waitOnFutures(futures));
-                }
-                catch (Throwable t)
-                {
-                    t = memtable.abortRunnables(flushRunnables, t);
-                    t = txn.abort(t);
-                    throw Throwables.propagate(t);
+                    memtable.cfs.replaceFlushed(memtable, Collections.emptyList());
+                    reclaim(memtable);
+                    return Collections.emptyList();
                 }
 
-                try
+                List<Future<SSTableMultiWriter>> futures = new ArrayList<>();
+                long totalBytesOnDisk = 0;
+                long maxBytesOnDisk = 0;
+                long minBytesOnDisk = Long.MAX_VALUE;
+                List<SSTableReader> sstables = new ArrayList<>();
+                try (LifecycleTransaction txn = LifecycleTransaction.offline(OperationType.FLUSH))
                 {
-                    Iterator<SSTableMultiWriter> writerIterator = flushResults.iterator();
-                    while (writerIterator.hasNext())
+                    List<Memtable.FlushRunnable> flushRunnables = null;
+                    List<SSTableMultiWriter> flushResults = null;
+
+                    try
                     {
-                        @SuppressWarnings("resource")
-                        SSTableMultiWriter writer = writerIterator.next();
-                        if (writer.getFilePointer() > 0)
+                        // flush the memtable
+                        flushRunnables = memtable.flushRunnables(txn);
+
+                        for (int i = 0; i < flushRunnables.size(); i++)
+                            futures.add(perDiskflushExecutors[i].submit(flushRunnables.get(i)));
+
+                        /**
+                         * we can flush 2is as soon as the barrier completes, as they will be consistent with (or ahead of) the
+                         * flushed memtables and CL position, which is as good as we can guarantee.
+                         * TODO: SecondaryIndex should support setBarrier(), so custom implementations can co-ordinate exactly
+                         * with CL as we do with memtables/CFS-backed SecondaryIndexes.
+                         */
+                        if (flushNonCf2i)
+                            indexManager.flushAllNonCFSBackedIndexesBlocking();
+
+                        flushResults = Lists.newArrayList(FBUtilities.waitOnFutures(futures));
+                    }
+                    catch (Throwable t)
+                    {
+                        t = memtable.abortRunnables(flushRunnables, t);
+                        t = txn.abort(t);
+                        throw Throwables.propagate(t);
+                    }
+
+                    try
+                    {
+                        Iterator<SSTableMultiWriter> writerIterator = flushResults.iterator();
+                        while (writerIterator.hasNext())
                         {
-                            writer.setOpenResult(true).prepareToCommit();
-                        }
-                        else
-                        {
-                            maybeFail(writer.abort(null));
-                            writerIterator.remove();
+                            @SuppressWarnings("resource")
+                            SSTableMultiWriter writer = writerIterator.next();
+                            if (writer.getFilePointer() > 0)
+                            {
+                                writer.setOpenResult(true).prepareToCommit();
+                            }
+                            else
+                            {
+                                maybeFail(writer.abort(null));
+                                writerIterator.remove();
+                            }
                         }
                     }
-                }
-                catch (Throwable t)
-                {
+                    catch (Throwable t)
+                    {
+                        for (SSTableMultiWriter writer : flushResults)
+                            t = writer.abort(t);
+                        t = txn.abort(t);
+                        Throwables.propagate(t);
+                    }
+
+                    txn.prepareToCommit();
+
+                    Throwable accumulate = null;
                     for (SSTableMultiWriter writer : flushResults)
-                        t = writer.abort(t);
-                    t = txn.abort(t);
-                    Throwables.propagate(t);
-                }
+                        accumulate = writer.commit(accumulate);
 
-                txn.prepareToCommit();
+                    maybeFail(txn.commit(accumulate));
 
-                Throwable accumulate = null;
-                for (SSTableMultiWriter writer : flushResults)
-                    accumulate = writer.commit(accumulate);
-
-                maybeFail(txn.commit(accumulate));
-
-                for (SSTableMultiWriter writer : flushResults)
-                {
-                    Collection<SSTableReader> flushedSSTables = writer.finished();
-                    for (SSTableReader sstable : flushedSSTables)
+                    for (SSTableMultiWriter writer : flushResults)
                     {
-                        if (sstable != null)
+                        Collection<SSTableReader> flushedSSTables = writer.finished();
+                        for (SSTableReader sstable : flushedSSTables)
                         {
-                            sstables.add(sstable);
-                            long size = sstable.bytesOnDisk();
-                            totalBytesOnDisk += size;
-                            maxBytesOnDisk = Math.max(maxBytesOnDisk, size);
-                            minBytesOnDisk = Math.min(minBytesOnDisk, size);
+                            if (sstable != null)
+                            {
+                                sstables.add(sstable);
+                                long size = sstable.bytesOnDisk();
+                                totalBytesOnDisk += size;
+                                maxBytesOnDisk = Math.max(maxBytesOnDisk, size);
+                                minBytesOnDisk = Math.min(minBytesOnDisk, size);
+                            }
                         }
                     }
                 }
+                memtable.cfs.replaceFlushed(memtable, sstables);
+                reclaim(memtable);
+                memtable.cfs.compactionStrategyManager.compactionLogger.flush(sstables);
+                logger.debug("Flushed to {} ({} sstables, {}), biggest {}, smallest {}",
+                             sstables,
+                             sstables.size(),
+                             FBUtilities.prettyPrintMemory(totalBytesOnDisk),
+                             FBUtilities.prettyPrintMemory(maxBytesOnDisk),
+                             FBUtilities.prettyPrintMemory(minBytesOnDisk));
+                return sstables;
             }
-            memtable.cfs.replaceFlushed(memtable, sstables);
-            reclaim(memtable);
-            memtable.cfs.compactionStrategyManager.compactionLogger.flush(sstables);
-            logger.debug("Flushed to {} ({} sstables, {}), biggest {}, smallest {}",
-                         sstables,
-                         sstables.size(),
-                         FBUtilities.prettyPrintMemory(totalBytesOnDisk),
-                         FBUtilities.prettyPrintMemory(maxBytesOnDisk),
-                         FBUtilities.prettyPrintMemory(minBytesOnDisk));
-            return sstables;
+            finally
+            {
+                dbLogger.trace("{}.{} - finished", getClass().getSimpleName(), "flushMemtable");
+            }
         }
 
         private void reclaim(final Memtable memtable)
@@ -1265,7 +1273,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     public void apply(PartitionUpdate update, UpdateTransaction indexer, OpOrder.Group opGroup, CommitLogPosition commitLogPosition)
 
     {
-        logger.warn("Starting {}.{}", getClass().getSimpleName(), "apply");
+        dbLogger.trace("{}.{} - starting...", getClass().getSimpleName(), "apply");
 
         long start = System.nanoTime();
         try
@@ -1292,6 +1300,10 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
             throw new RuntimeException(e.getMessage()
                                        + " for ks: "
                                        + keyspace.getName() + ", table: " + name, e);
+        }
+        finally
+        {
+            dbLogger.trace("{}.{} - finished", getClass().getSimpleName(), "apply");
         }
     }
 

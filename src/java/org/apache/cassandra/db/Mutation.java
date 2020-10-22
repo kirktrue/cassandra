@@ -49,6 +49,7 @@ import static org.apache.cassandra.utils.MonotonicClock.approxTime;
 
 public class Mutation implements IMutation
 {
+    private static final Logger dbLogger = LoggerFactory.getLogger("kirk.db");
     protected static final Logger logger = LoggerFactory.getLogger(Mutation.class);
 
     public static final MutationSerializer serializer = new MutationSerializer();
@@ -222,8 +223,9 @@ public class Mutation implements IMutation
      */
     public void apply()
     {
-        logger.warn("Starting {}.{}", getClass().getSimpleName(), "apply");
+        dbLogger.trace("{}.{} - starting...", getClass().getSimpleName(), "apply");
         apply(Keyspace.open(keyspaceName).getMetadata().params.durableWrites);
+        dbLogger.trace("{}.{} - finished", getClass().getSimpleName(), "apply");
     }
 
     public void applyUnsafe()

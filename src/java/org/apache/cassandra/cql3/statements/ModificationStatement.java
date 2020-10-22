@@ -614,22 +614,35 @@ public abstract class ModificationStatement implements CQLStatement
 
     public ResultMessage executeLocally(QueryState queryState, QueryOptions options) throws RequestValidationException, RequestExecutionException
     {
-        cqlLogger.debug("{}.{} - starting", getClass().getSimpleName(), "executeLocally");
+        cqlLogger.trace("{}.{} - starting...", getClass().getSimpleName(), "executeLocally");
 
-        return hasConditions()
-               ? executeInternalWithCondition(queryState, options)
-               : executeInternalWithoutCondition(queryState, options, System.nanoTime());
+        try {
+            return hasConditions()
+                   ? executeInternalWithCondition(queryState, options)
+                   : executeInternalWithoutCondition(queryState, options, System.nanoTime());
+        }
+        finally
+        {
+            cqlLogger.trace("{}.{} - finished", getClass().getSimpleName(), "executeLocally");
+        }
     }
 
     public ResultMessage executeInternalWithoutCondition(QueryState queryState, QueryOptions options, long queryStartNanoTime)
     throws RequestValidationException, RequestExecutionException
     {
-        cqlLogger.debug("{}.{} - starting", getClass().getSimpleName(), "executeInternalWithoutCondition");
+        cqlLogger.trace("{}.{} - starting...", getClass().getSimpleName(), "executeInternalWithoutCondition");
         long timestamp = options.getTimestamp(queryState);
         int nowInSeconds = options.getNowInSeconds(queryState);
         for (IMutation mutation : getMutations(options, true, timestamp, nowInSeconds, queryStartNanoTime))
             mutation.apply();
-        return null;
+        try
+        {
+            return null;
+        }
+        finally
+        {
+            cqlLogger.trace("{}.{} - finished", getClass().getSimpleName(), "executeInternalWithoutCondition");
+        }
     }
 
     public ResultMessage executeInternalWithCondition(QueryState state, QueryOptions options)
@@ -692,67 +705,74 @@ public abstract class ModificationStatement implements CQLStatement
                           int nowInSeconds,
                           long queryStartNanoTime)
     {
-        cqlLogger.debug("{}.{} - starting", getClass().getSimpleName(), "addUpdates");
+        cqlLogger.trace("{}.{} - starting...", getClass().getSimpleName(), "addUpdates");
 
         List<ByteBuffer> keys = buildPartitionKeyNames(options);
 
-        if (hasSlices())
+        try
         {
-            Slices slices = createSlices(options);
-
-            // If all the ranges were invalid we do not need to do anything.
-            if (slices.isEmpty())
-                return;
-
-            UpdateParameters params = makeUpdateParameters(keys,
-                                                           new ClusteringIndexSliceFilter(slices, false),
-                                                           options,
-                                                           DataLimits.NONE,
-                                                           local,
-                                                           timestamp,
-                                                           nowInSeconds,
-                                                           queryStartNanoTime);
-            for (ByteBuffer key : keys)
+            if (hasSlices())
             {
-                Validation.validateKey(metadata(), key);
-                DecoratedKey dk = metadata().partitioner.decorateKey(key);
+                Slices slices = createSlices(options);
 
-                PartitionUpdate.Builder updateBuilder = collector.getPartitionUpdateBuilder(metadata(), dk, options.getConsistency());
+                // If all the ranges were invalid we do not need to do anything.
+                if (slices.isEmpty())
+                    return;
 
-                for (Slice slice : slices)
-                    addUpdateForKey(updateBuilder, slice, params);
-            }
-        }
-        else
-        {
-            NavigableSet<Clustering<?>> clusterings = createClustering(options);
-
-            // If some of the restrictions were unspecified (e.g. empty IN restrictions) we do not need to do anything.
-            if (restrictions.hasClusteringColumnsRestrictions() && clusterings.isEmpty())
-                return;
-
-            UpdateParameters params = makeUpdateParameters(keys, clusterings, options, local, timestamp, nowInSeconds, queryStartNanoTime);
-
-            for (ByteBuffer key : keys)
-            {
-                Validation.validateKey(metadata(), key);
-                DecoratedKey dk = metadata().partitioner.decorateKey(key);
-
-                PartitionUpdate.Builder updateBuilder = collector.getPartitionUpdateBuilder(metadata(), dk, options.getConsistency());
-
-                if (!restrictions.hasClusteringColumnsRestrictions())
+                UpdateParameters params = makeUpdateParameters(keys,
+                                                               new ClusteringIndexSliceFilter(slices, false),
+                                                               options,
+                                                               DataLimits.NONE,
+                                                               local,
+                                                               timestamp,
+                                                               nowInSeconds,
+                                                               queryStartNanoTime);
+                for (ByteBuffer key : keys)
                 {
-                    addUpdateForKey(updateBuilder, Clustering.EMPTY, params);
+                    Validation.validateKey(metadata(), key);
+                    DecoratedKey dk = metadata().partitioner.decorateKey(key);
+
+                    PartitionUpdate.Builder updateBuilder = collector.getPartitionUpdateBuilder(metadata(), dk, options.getConsistency());
+
+                    for (Slice slice : slices)
+                        addUpdateForKey(updateBuilder, slice, params);
                 }
-                else
+            }
+            else
+            {
+                NavigableSet<Clustering<?>> clusterings = createClustering(options);
+
+                // If some of the restrictions were unspecified (e.g. empty IN restrictions) we do not need to do anything.
+                if (restrictions.hasClusteringColumnsRestrictions() && clusterings.isEmpty())
+                    return;
+
+                UpdateParameters params = makeUpdateParameters(keys, clusterings, options, local, timestamp, nowInSeconds, queryStartNanoTime);
+
+                for (ByteBuffer key : keys)
                 {
-                    for (Clustering<?> clustering : clusterings)
+                    Validation.validateKey(metadata(), key);
+                    DecoratedKey dk = metadata().partitioner.decorateKey(key);
+
+                    PartitionUpdate.Builder updateBuilder = collector.getPartitionUpdateBuilder(metadata(), dk, options.getConsistency());
+
+                    if (!restrictions.hasClusteringColumnsRestrictions())
                     {
-                        validateClustering(clustering);
-                        addUpdateForKey(updateBuilder, clustering, params);
+                        addUpdateForKey(updateBuilder, Clustering.EMPTY, params);
+                    }
+                    else
+                    {
+                        for (Clustering<?> clustering : clusterings)
+                        {
+                            validateClustering(clustering);
+                            addUpdateForKey(updateBuilder, clustering, params);
+                        }
                     }
                 }
             }
+        }
+        finally
+        {
+            cqlLogger.trace("{}.{} - finished", getClass().getSimpleName(), "addUpdates");
         }
     }
 

@@ -67,6 +67,7 @@ public final class CQLFragmentParser
      */
     public static <R> R parseAnyUnhandled(CQLParserFunction<R> parserFunction, String input) throws RecognitionException
     {
+        cqlLogger.trace("{}.{} - starting...", CQLFragmentParser.class.getSimpleName(), "parseAnyUnhandled");
         cqlLogger.debug("{}.{} - input: {}", CQLFragmentParser.class.getSimpleName(), "parseAnyUnhandled", input);
 
         // Lexer and parser
@@ -86,6 +87,12 @@ public final class CQLFragmentParser
         // along the way, if necessary, we turn the last error into exceptions here.
         errorCollector.throwFirstSyntaxError();
 
-        return r;
+        try {
+            return r;
+        }
+        finally
+        {
+            cqlLogger.trace("{}.{} - finished", CQLFragmentParser.class.getSimpleName(), "parseAnyUnhandled");
+        }
     }
 }

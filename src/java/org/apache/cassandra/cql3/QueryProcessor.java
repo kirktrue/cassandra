@@ -300,6 +300,7 @@ public class QueryProcessor implements QueryHandler
 
     public static Prepared prepareInternal(String query) throws RequestValidationException
     {
+        cqlLogger.trace("{}.{} - starting...", QueryProcessor.class.getSimpleName(), "prepareInternal");
         Prepared prepared = internalStatements.get(query);
         if (prepared != null)
         {
@@ -315,7 +316,14 @@ public class QueryProcessor implements QueryHandler
         prepared = new Prepared(statement);
         cqlLogger.debug("{}.{} - statement, step 4: {}", QueryProcessor.class.getSimpleName(), "prepareInternal", statement);
         internalStatements.put(query, prepared);
-        return prepared;
+
+        try {
+            return prepared;
+        }
+        finally
+        {
+            cqlLogger.trace("{}.{} - finished", QueryProcessor.class.getSimpleName(), "prepareInternal");
+        }
     }
 
     public static UntypedResultSet executeInternal(String query, Object... values)
@@ -528,6 +536,7 @@ public class QueryProcessor implements QueryHandler
     public static CQLStatement getStatement(String queryStr, ClientState clientState)
     throws RequestValidationException
     {
+        cqlLogger.trace("{}.{} - starting...", QueryProcessor.class.getSimpleName(), "getStatement");
         Tracing.trace("Parsing {}", queryStr);
         CQLStatement.Raw statement = parseStatement(queryStr);
 
@@ -541,7 +550,15 @@ public class QueryProcessor implements QueryHandler
         Tracing.trace("Preparing statement");
         CQLStatement statementReturned = statement.prepare(clientState);
         cqlLogger.debug("{}.{} - statementReturned: {}", QueryProcessor.class.getSimpleName(), "getStatement", statementReturned);
-        return statementReturned;
+
+        try
+        {
+            return statementReturned;
+        }
+        finally
+        {
+            cqlLogger.trace("{}.{} - finished", QueryProcessor.class.getSimpleName(), "getStatement");
+        }
     }
 
     public static <T extends CQLStatement.Raw> T parseStatement(String queryStr, Class<T> klass, String type) throws SyntaxException

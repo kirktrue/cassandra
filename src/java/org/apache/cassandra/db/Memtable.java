@@ -62,6 +62,7 @@ import org.apache.cassandra.utils.memory.SlabPool;
 
 public class Memtable implements Comparable<Memtable>
 {
+    private static final Logger dbLogger = LoggerFactory.getLogger("kirk.db");
     private static final Logger logger = LoggerFactory.getLogger(Memtable.class);
 
     public static final MemtablePool MEMORY_POOL = createMemtableAllocatorPool();
@@ -255,7 +256,7 @@ public class Memtable implements Comparable<Memtable>
      */
     long put(PartitionUpdate update, UpdateTransaction indexer, OpOrder.Group opGroup)
     {
-        logger.warn("Starting {}.{}", getClass().getSimpleName(), "put");
+        dbLogger.trace("{}.{} - starting...", getClass().getSimpleName(), "put");
         AtomicBTreePartition previous = partitions.get(update.partitionKey());
 
         long initialSize = 0;
@@ -282,7 +283,15 @@ public class Memtable implements Comparable<Memtable>
         columnsCollector.update(update.columns());
         statsCollector.update(update.stats());
         currentOperations.addAndGet(update.operationCount());
-        return pair[1];
+
+        try
+        {
+            return pair[1];
+        }
+        finally
+        {
+            dbLogger.trace("{}.{} - finished", getClass().getSimpleName(), "put");
+        }
     }
 
     public int partitionCount()
@@ -450,10 +459,8 @@ public class Memtable implements Comparable<Memtable>
 
         private void writeSortedContents()
         {
+            dbLogger.trace("{}.{} - starting...", getClass().getSimpleName(), "writeSortedContents");
             logger.info("Writing {}, flushed range = ({}, {}]", Memtable.this.toString(), from, to);
-            logger.warn("Starting {}.{}", getClass().getSimpleName(), "writeSortedContents");
-            if (logger.isDebugEnabled())
-                logger.debug("Writing {}, flushed range = ({}, {}]", Memtable.this.toString(), from, to);
 
             boolean trackContention = logger.isTraceEnabled();
             int heavilyContendedRowCount = 0;
@@ -491,6 +498,8 @@ public class Memtable implements Comparable<Memtable>
 
             if (heavilyContendedRowCount > 0)
                 logger.trace("High update contention in {}/{} partitions of {} ", heavilyContendedRowCount, toFlush.size(), Memtable.this);
+
+            dbLogger.trace("{}.{} - finished", getClass().getSimpleName(), "writeSortedContents");
         }
 
         public SSTableMultiWriter createFlushWriter(LifecycleTransaction txn,

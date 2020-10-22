@@ -28,7 +28,6 @@ import org.apache.cassandra.tracing.Tracing;
 public class CassandraTableWriteHandler implements TableWriteHandler
 {
     private static final Logger dbLogger = LoggerFactory.getLogger("kirk.db");
-    private static final Logger logger = LoggerFactory.getLogger(CassandraTableWriteHandler.class);
 
     private final ColumnFamilyStore cfs;
 

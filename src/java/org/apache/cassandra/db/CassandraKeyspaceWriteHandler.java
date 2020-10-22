@@ -30,7 +30,6 @@ import org.apache.cassandra.utils.concurrent.OpOrder;
 public class CassandraKeyspaceWriteHandler implements KeyspaceWriteHandler
 {
     private static final Logger dbLogger = LoggerFactory.getLogger("kirk.db");
-    private static final Logger logger = LoggerFactory.getLogger(CassandraKeyspaceWriteHandler.class);
 
     private final Keyspace keyspace;
 
@@ -43,7 +42,7 @@ public class CassandraKeyspaceWriteHandler implements KeyspaceWriteHandler
     @SuppressWarnings("resource") // group is closed when CassandraWriteContext is closed
     public WriteContext beginWrite(Mutation mutation, boolean makeDurable) throws RequestExecutionException
     {
-        dbLogger.trace("{}.{} - starting", getClass().getSimpleName(), "beginWrite");
+        dbLogger.trace("{}.{} - starting...", getClass().getSimpleName(), "beginWrite");
         OpOrder.Group group = null;
         try
         {
