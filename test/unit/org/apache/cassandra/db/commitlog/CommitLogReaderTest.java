@@ -45,6 +45,9 @@ import org.apache.cassandra.utils.KillerForTests;
 
 public class CommitLogReaderTest extends CQLTester
 {
+
+    private static final Logger commitLogTestLogger = LoggerFactory.getLogger("kirk.commitlog.test");
+
     @BeforeClass
     public static void beforeClass()
     {
@@ -61,13 +64,18 @@ public class CommitLogReaderTest extends CQLTester
     @Test
     public void testReadAll() throws Throwable
     {
+        for (int i = 0; i < 25; i++)
+            commitLogTestLogger.info("{}.{} - starting...", getClass().getSimpleName(), "testReadAll");
+
         int samples = 10;
 
-//        Thread.sleep(1000);
+        Thread.sleep(1000);
 
+        commitLogTestLogger.info("{}.{} - starting test population...", getClass().getSimpleName(), "testReadAll");
         populateData(samples);
-
+        commitLogTestLogger.info("{}.{} - finished test population, getting commit logs...", getClass().getSimpleName(), "testReadAll");
         ArrayList<File> toCheck = getCommitLogs();
+        commitLogTestLogger.info("{}.{} - toCheck: {}", getClass().getSimpleName(), "testReadAll", toCheck);
 
         CommitLogReader reader = new CommitLogReader();
 
@@ -256,28 +264,35 @@ public class CommitLogReaderTest extends CQLTester
     {
         Assert.assertEquals("entryCount must be an even number.", 0, entryCount % 2);
 
+        commitLogTestLogger.debug("{}.{} - started creating table...", getClass().getSimpleName(), "populateData");
         createTable("CREATE TABLE %s (idx INT, data TEXT, PRIMARY KEY(idx));");
+        commitLogTestLogger.debug("{}.{} - finished creating table", getClass().getSimpleName(), "populateData");
 
         int midpoint = entryCount / 2;
 
+        commitLogTestLogger.info("{}.{} - started first insert batch...", getClass().getSimpleName(), "populateData");
+
         for (int i = 0; i < midpoint; i++) {
-            logger.warn("------------------------------------------------------------------------------------------");
+            commitLogTestLogger.debug("{}.{} - started insert...", getClass().getSimpleName(), "populateData");
             execute("INSERT INTO %s (idx, data) VALUES (?, ?)", i, Integer.toString(i));
-            logger.warn("------------------------------------------------------------------------------------------");
+            commitLogTestLogger.debug("{}.{} - finished insert", getClass().getSimpleName(), "populateData");
         }
 
+        commitLogTestLogger.info("{}.{} - ...done", getClass().getSimpleName(), "populateData");
         CommitLogPosition result = CommitLog.instance.getCurrentPosition();
+        commitLogTestLogger.info("{}.{} - result: {}", getClass().getSimpleName(), "populateData", result);
+        commitLogTestLogger.info("{}.{} - started second insert batch...", getClass().getSimpleName(), "populateData");
 
         for (int i = midpoint; i < entryCount; i++)
         {
-            logger.warn("------------------------------------------------------------------------------------------");
+            commitLogTestLogger.debug("{}.{} - started insert...", getClass().getSimpleName(), "populateData");
             execute("INSERT INTO %s (idx, data) VALUES (?, ?)", i, Integer.toString(i));
-            logger.warn("------------------------------------------------------------------------------------------");
+            commitLogTestLogger.debug("{}.{} - finished insert", getClass().getSimpleName(), "populateData");
         }
 
-        Keyspace.open(keyspace()).getColumnFamilyStore(currentTable()).forceBlockingFlush();
+        commitLogTestLogger.info("{}.{} - ...done", getClass().getSimpleName(), "populateData");
 
-        logger.warn("populateData - result: {}", result);
+        Keyspace.open(keyspace()).getColumnFamilyStore(currentTable()).forceBlockingFlush();
 
         return result;
     }

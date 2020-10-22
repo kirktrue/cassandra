@@ -292,6 +292,7 @@ public abstract class AbstractCommitLogService
 
     public void shutdown()
     {
+        logger.warn("{}.{} - Started...", getClass().getSimpleName(), "shutdown");
         shutdown = true;
         requestExtraSync();
     }

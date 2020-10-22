@@ -424,6 +424,8 @@ public class CommitLog implements CommitLogMBean
         if (!started)
             return;
 
+        logger.warn("Starting {}.{}...", getClass().getSimpleName(), "shutdownBlocking");
+
         started = false;
         executor.shutdown();
         executor.awaitTermination();
@@ -459,6 +461,7 @@ public class CommitLog implements CommitLogMBean
     @VisibleForTesting
     synchronized public void stopUnsafe(boolean deleteSegments)
     {
+        logger.warn("Starting {}.{}...", getClass().getSimpleName(), "stopUnsafe");
         started = false;
         executor.shutdown();
         try
@@ -482,6 +485,7 @@ public class CommitLog implements CommitLogMBean
     @VisibleForTesting
     synchronized public int restartUnsafe() throws IOException
     {
+        logger.warn("Starting {}.{}...", getClass().getSimpleName(), "restartUnsafe");
         started = false;
         return start().recoverSegmentsOnDisk();
     }

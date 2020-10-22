@@ -100,6 +100,7 @@ import static junit.framework.Assert.assertNotNull;
  */
 public abstract class CQLTester
 {
+    private static final Logger cqlTestLogger = LoggerFactory.getLogger("kirk.cql.test");
     protected static final Logger logger = LoggerFactory.getLogger(CQLTester.class);
 
     public static final String KEYSPACE = "cql_test_keyspace";
@@ -296,6 +297,7 @@ public abstract class CQLTester
 
     public static void cleanupAndLeaveDirs() throws IOException
     {
+        cqlTestLogger.debug("{}.{} - starting...", CQLTester.class.getSimpleName(), "cleanupAndLeaveDirs");
         // We need to stop and unmap all CLS instances prior to cleanup() or we'll get failures on Windows.
         CommitLog.instance.start();
         CommitLog.instance.stopUnsafe(true);
@@ -303,6 +305,7 @@ public abstract class CQLTester
         cleanup();
         mkdirs();
         CommitLog.instance.restartUnsafe();
+        cqlTestLogger.debug("{}.{} - finished", CQLTester.class.getSimpleName(), "cleanupAndLeaveDirs");
     }
 
     public static void cleanup()
@@ -1059,7 +1062,7 @@ public abstract class CQLTester
         {
             if (logger.isTraceEnabled())
                 logger.trace("Executing: {} with values {}", query, formatAllValues(values));
-            logger.warn("reusePrepared: {}", reusePrepared);
+            cqlTestLogger.debug("{}.{} - reusePrepared: {}", getClass().getSimpleName(), "executeFormattedQuery", reusePrepared);
             if (reusePrepared)
             {
                 rs = QueryProcessor.executeInternal(query, transformValues(values));

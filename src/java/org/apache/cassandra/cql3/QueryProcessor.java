@@ -61,6 +61,8 @@ import static org.apache.cassandra.cql3.statements.RequestValidations.checkTrue;
 
 public class QueryProcessor implements QueryHandler
 {
+    private static final Logger cqlLogger = LoggerFactory.getLogger("kirk.cql");
+
     public static final CassandraVersion CQL_VERSION = new CassandraVersion("3.4.5");
 
     public static final QueryProcessor instance = new QueryProcessor();
@@ -301,17 +303,17 @@ public class QueryProcessor implements QueryHandler
         Prepared prepared = internalStatements.get(query);
         if (prepared != null)
         {
-            logger.warn("prepared.statement is returned from cache, yo!: {}", prepared.statement);
+            cqlLogger.debug("{}.{} - statement returned from cache", QueryProcessor.class.getSimpleName(), "prepareInternal");
             return prepared;
         }
 
         // Note: if 2 threads prepare the same query, we'll live so don't bother synchronizing
         CQLStatement statement = parseStatement(query, internalQueryState().getClientState());
-        logger.warn("prepareInternal - statement, step 3: {}", statement);
+        cqlLogger.debug("{}.{} - statement, step 3: {}", QueryProcessor.class.getSimpleName(), "prepareInternal", statement);
         statement.validate(internalQueryState().getClientState());
 
         prepared = new Prepared(statement);
-        logger.warn("prepareInternal - statement, step 4: {}", statement);
+        cqlLogger.debug("{}.{} - statement, step 4: {}", QueryProcessor.class.getSimpleName(), "prepareInternal", statement);
         internalStatements.put(query, prepared);
         return prepared;
     }
@@ -533,12 +535,12 @@ public class QueryProcessor implements QueryHandler
         if (statement instanceof QualifiedStatement)
             ((QualifiedStatement) statement).setKeyspace(clientState);
 
-        logger.warn("getStatement - statement class: {}", statement.getClass());
-        logger.warn("getStatement - statement, step 1: {}", statement);
+        cqlLogger.debug("{}.{} - statement class: {}", QueryProcessor.class.getSimpleName(), "getStatement", statement.getClass());
+        cqlLogger.debug("{}.{} - statement: {}", QueryProcessor.class.getSimpleName(), "getStatement", statement);
 
         Tracing.trace("Preparing statement");
         CQLStatement statementReturned = statement.prepare(clientState);
-        logger.warn("getStatement - statementReturned, step 2: {}", statementReturned);
+        cqlLogger.debug("{}.{} - statementReturned: {}", QueryProcessor.class.getSimpleName(), "getStatement", statementReturned);
         return statementReturned;
     }
 

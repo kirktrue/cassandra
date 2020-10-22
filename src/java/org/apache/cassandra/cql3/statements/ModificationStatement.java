@@ -66,6 +66,8 @@ import static org.apache.cassandra.cql3.statements.RequestValidations.checkNull;
  */
 public abstract class ModificationStatement implements CQLStatement
 {
+    private static final Logger cqlLogger = LoggerFactory.getLogger("kirk.cql");
+
     protected static final Logger logger = LoggerFactory.getLogger(ModificationStatement.class);
 
     private final static MD5Digest EMPTY_HASH = MD5Digest.wrap(new byte[] {});
@@ -612,7 +614,7 @@ public abstract class ModificationStatement implements CQLStatement
 
     public ResultMessage executeLocally(QueryState queryState, QueryOptions options) throws RequestValidationException, RequestExecutionException
     {
-        logger.warn("Starting {}.{}", getClass().getSimpleName(), "executeLocally");
+        cqlLogger.debug("{}.{} - starting", getClass().getSimpleName(), "executeLocally");
 
         return hasConditions()
                ? executeInternalWithCondition(queryState, options)
@@ -622,7 +624,7 @@ public abstract class ModificationStatement implements CQLStatement
     public ResultMessage executeInternalWithoutCondition(QueryState queryState, QueryOptions options, long queryStartNanoTime)
     throws RequestValidationException, RequestExecutionException
     {
-        logger.warn("Starting {}.{}", getClass().getSimpleName(), "executeInternalWithoutCondition");
+        cqlLogger.debug("{}.{} - starting", getClass().getSimpleName(), "executeInternalWithoutCondition");
         long timestamp = options.getTimestamp(queryState);
         int nowInSeconds = options.getNowInSeconds(queryState);
         for (IMutation mutation : getMutations(options, true, timestamp, nowInSeconds, queryStartNanoTime))
@@ -690,7 +692,7 @@ public abstract class ModificationStatement implements CQLStatement
                           int nowInSeconds,
                           long queryStartNanoTime)
     {
-        logger.warn("Starting {}.{}", getClass().getSimpleName(), "addUpdates");
+        cqlLogger.debug("{}.{} - starting", getClass().getSimpleName(), "addUpdates");
 
         List<ByteBuffer> keys = buildPartitionKeyNames(options);
 

@@ -61,6 +61,15 @@
 
   <logger name="org.apache.cassandra.db.monitoring" level="DEBUG"/>
 
+  <logger name="kirk.commitlog" level="INFO"/>
+  <logger name="kirk.commitlog.test" level="DEBUG"/>
+
+  <logger name="kirk.cql" level="INFO"/>
+  <logger name="kirk.cql.test" level="DEBUG"/>
+
+  <logger name="org.apache.cassandra.db" level="OFF"/>
+  <logger name="org.apache.cassandra.db.commitlog" level="OFF"/>
+
   <!-- Do not change the name of this appender. LogbackStatusListener uses the thread name
        tied to the appender name to know when to write to real stdout/stderr vs forwarding to logback -->
   <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">

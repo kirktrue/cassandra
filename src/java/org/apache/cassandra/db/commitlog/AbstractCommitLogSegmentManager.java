@@ -112,6 +112,7 @@ public abstract class AbstractCommitLogSegmentManager
                     {
                         assert availableSegment == null;
                         logger.trace("No segments in reserve; creating a fresh one");
+                        logger.warn("{}.{} - about to create a new segment...", getClass().getName(), "start");
                         availableSegment = createSegment();
                         if (shutdown)
                         {
@@ -130,7 +131,9 @@ public abstract class AbstractCommitLogSegmentManager
 
                         // Writing threads are not waiting for new segments, we can spend time on other tasks.
                         // flush old Cfs if we're full
+                        logger.warn("{}.{} - before maybeFlushToReclaim, availableSegment: {}", getClass().getName(), "start", availableSegment);
                         maybeFlushToReclaim();
+                        logger.warn("{}.{} -  after maybeFlushToReclaim, availableSegment: {}", getClass().getName(), "start", availableSegment);
                     }
                     catch (Throwable t)
                     {
@@ -144,7 +147,9 @@ public abstract class AbstractCommitLogSegmentManager
                         // shutting down-- nothing more can or needs to be done in that case.
                     }
 
+                    logger.warn("{}.{} - before waitOnCondition, availableSegment: {}", getClass().getName(), "start", availableSegment);
                     WaitQueue.waitOnCondition(managerThreadWaitCondition, managerThreadWaitQueue);
+                    logger.warn("{}.{} -  after waitOnCondition, availableSegment: {}", getClass().getName(), "start", availableSegment);
                 }
             }
         };
@@ -236,6 +241,7 @@ public abstract class AbstractCommitLogSegmentManager
                     // Success! Change allocatingFrom and activeSegments (which must be kept in order) before leaving
                     // the critical section.
                     activeSegments.add(allocatingFrom = availableSegment);
+                    logger.warn("{}.{} - about to clear availableSegment: {}", getClass().getSimpleName(), "advanceAllocatingFrom", availableSegment);
                     availableSegment = null;
                     break;
                 }
@@ -486,6 +492,7 @@ public abstract class AbstractCommitLogSegmentManager
         synchronized (this)
         {
             next = availableSegment;
+            logger.warn("{}.{} - about to clear availableSegment: {}", getClass().getSimpleName(), "discardAvailableSegment", availableSegment);
             availableSegment = null;
         }
         if (next != null)
@@ -535,11 +542,11 @@ public abstract class AbstractCommitLogSegmentManager
     {
         logger.warn("Starting {}.{} - flush: {}", getClass().getSimpleName(), "sync", flush);
         CommitLogSegment current = allocatingFrom;
-        logger.warn("current.id: {}", current.id);
+        logger.warn("{}.{} - current: {}", getClass().getSimpleName(), "sync", current);
 
         for (CommitLogSegment segment : getActiveSegments())
         {
-            logger.warn("segment.id: {}", segment.id);
+            logger.warn("{}.{} - segment: {}", getClass().getSimpleName(), "sync", segment);
 
             // Do not sync segments that became active after sync started.
             if (segment.id > current.id)

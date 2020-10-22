@@ -138,11 +138,13 @@ public abstract class CommitLogSegment
 
     static CommitLogSegment createSegment(CommitLog commitLog, AbstractCommitLogSegmentManager manager)
     {
+        logger.warn("Starting {}.{} - commitLog: {}", CommitLogSegment.class.getSimpleName(), "createSegment", commitLog);
         Configuration config = commitLog.configuration;
         CommitLogSegment segment = config.useEncryption() ? new EncryptedSegment(commitLog, manager)
                                                           : config.useCompression() ? new CompressedSegment(commitLog, manager)
                                                                                     : new MemoryMappedSegment(commitLog, manager);
         segment.writeLogHeader();
+        logger.warn("{}.{} - segment: {}", CommitLogSegment.class.getSimpleName(), "createSegment", segment);
         return segment;
     }
 
@@ -319,7 +321,7 @@ public abstract class CommitLogSegment
      */
     synchronized void sync(boolean flush)
     {
-        logger.warn("Starting {}.{} - flush: {}", getClass().getSimpleName(), "sync", flush);
+        logger.warn("Starting {}.{} - flush: {}, logFile: {}", getClass().getSimpleName(), "sync", flush, logFile);
 
         if (!headerWritten)
             throw new IllegalStateException("commit log header has not been written");
@@ -350,7 +352,7 @@ public abstract class CommitLogSegment
         int startMarker = lastMarkerOffset;
         int nextMarker, sectionEnd;
 
-        logger.warn("Starting {}.{} - needToMarkData: {}", getClass().getSimpleName(), "sync", needToMarkData);
+        logger.warn("{}.{} - needToMarkData: {}", getClass().getSimpleName(), "sync", needToMarkData);
 
         if (needToMarkData)
         {

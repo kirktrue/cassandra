@@ -34,7 +34,7 @@ import org.apache.cassandra.exceptions.SyntaxException;
 public final class CQLFragmentParser
 {
 
-    private static final Logger logger = LoggerFactory.getLogger(CQLFragmentParser.class);
+    private static final Logger cqlLogger = LoggerFactory.getLogger("kirk.cql");
 
     @FunctionalInterface
     public interface CQLParserFunction<R>
@@ -67,7 +67,7 @@ public final class CQLFragmentParser
      */
     public static <R> R parseAnyUnhandled(CQLParserFunction<R> parserFunction, String input) throws RecognitionException
     {
-        logger.warn("input: {}", input);
+        cqlLogger.info("{}.{} - input: {}", input, CQLFragmentParser.class.getSimpleName(), "parseAnyUnhandled");
 
         // Lexer and parser
         ErrorCollector errorCollector = new ErrorCollector(input);
