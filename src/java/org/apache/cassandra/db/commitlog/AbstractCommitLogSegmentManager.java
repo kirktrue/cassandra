@@ -241,6 +241,8 @@ public abstract class AbstractCommitLogSegmentManager
     @DontInline
     void advanceAllocatingFrom(CommitLogSegment old)
     {
+        logger.trace("{}.{} - starting...", getClass().getSimpleName(), "advanceAllocatingFrom");
+
         while (true)
         {
             synchronized (this)
@@ -255,7 +257,7 @@ public abstract class AbstractCommitLogSegmentManager
                     // Success! Change allocatingFrom and activeSegments (which must be kept in order) before leaving
                     // the critical section.
                     activeSegments.add(allocatingFrom = availableSegment);
-                    logger.warn("{}.{} - about to clear availableSegment: {}", getClass().getSimpleName(), "advanceAllocatingFrom", availableSegment);
+                    logger.debug("{}.{} - about to clear availableSegment: {}", getClass().getSimpleName(), "advanceAllocatingFrom", availableSegment);
                     availableSegment = null;
                     break;
                 }
@@ -279,6 +281,7 @@ public abstract class AbstractCommitLogSegmentManager
 
         // request that the CL be synced out-of-band, as we've finished a segment
         commitLog.requestExtraSync();
+        logger.trace("{}.{} - finished", getClass().getSimpleName(), "advanceAllocatingFrom");
     }
 
     void awaitAvailableSegment(CommitLogSegment currentAllocatingFrom)

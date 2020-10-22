@@ -87,12 +87,7 @@ public final class CQLFragmentParser
         // along the way, if necessary, we turn the last error into exceptions here.
         errorCollector.throwFirstSyntaxError();
 
-        try {
-            return r;
-        }
-        finally
-        {
-            cqlLogger.trace("{}.{} - finished", CQLFragmentParser.class.getSimpleName(), "parseAnyUnhandled");
-        }
+        cqlLogger.trace("{}.{} - finished", CQLFragmentParser.class.getSimpleName(), "parseAnyUnhandled");
+        return r;
     }
 }

@@ -551,14 +551,8 @@ public class QueryProcessor implements QueryHandler
         CQLStatement statementReturned = statement.prepare(clientState);
         cqlLogger.debug("{}.{} - statementReturned: {}", QueryProcessor.class.getSimpleName(), "getStatement", statementReturned);
 
-        try
-        {
-            return statementReturned;
-        }
-        finally
-        {
-            cqlLogger.trace("{}.{} - finished", QueryProcessor.class.getSimpleName(), "getStatement");
-        }
+        cqlLogger.trace("{}.{} - finished", QueryProcessor.class.getSimpleName(), "getStatement");
+        return statementReturned;
     }
 
     public static <T extends CQLStatement.Raw> T parseStatement(String queryStr, Class<T> klass, String type) throws SyntaxException

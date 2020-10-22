@@ -50,7 +50,6 @@ import static org.apache.cassandra.utils.MonotonicClock.approxTime;
 public class Mutation implements IMutation
 {
     private static final Logger dbLogger = LoggerFactory.getLogger("kirk.db");
-    protected static final Logger logger = LoggerFactory.getLogger(Mutation.class);
 
     public static final MutationSerializer serializer = new MutationSerializer();
 

@@ -709,71 +709,65 @@ public abstract class ModificationStatement implements CQLStatement
 
         List<ByteBuffer> keys = buildPartitionKeyNames(options);
 
-        try
+        if (hasSlices())
         {
-            if (hasSlices())
+            Slices slices = createSlices(options);
+
+            // If all the ranges were invalid we do not need to do anything.
+            if (slices.isEmpty())
+                return;
+
+            UpdateParameters params = makeUpdateParameters(keys,
+                                                           new ClusteringIndexSliceFilter(slices, false),
+                                                           options,
+                                                           DataLimits.NONE,
+                                                           local,
+                                                           timestamp,
+                                                           nowInSeconds,
+                                                           queryStartNanoTime);
+            for (ByteBuffer key : keys)
             {
-                Slices slices = createSlices(options);
+                Validation.validateKey(metadata(), key);
+                DecoratedKey dk = metadata().partitioner.decorateKey(key);
 
-                // If all the ranges were invalid we do not need to do anything.
-                if (slices.isEmpty())
-                    return;
+                PartitionUpdate.Builder updateBuilder = collector.getPartitionUpdateBuilder(metadata(), dk, options.getConsistency());
 
-                UpdateParameters params = makeUpdateParameters(keys,
-                                                               new ClusteringIndexSliceFilter(slices, false),
-                                                               options,
-                                                               DataLimits.NONE,
-                                                               local,
-                                                               timestamp,
-                                                               nowInSeconds,
-                                                               queryStartNanoTime);
-                for (ByteBuffer key : keys)
-                {
-                    Validation.validateKey(metadata(), key);
-                    DecoratedKey dk = metadata().partitioner.decorateKey(key);
-
-                    PartitionUpdate.Builder updateBuilder = collector.getPartitionUpdateBuilder(metadata(), dk, options.getConsistency());
-
-                    for (Slice slice : slices)
-                        addUpdateForKey(updateBuilder, slice, params);
-                }
+                for (Slice slice : slices)
+                    addUpdateForKey(updateBuilder, slice, params);
             }
-            else
+        }
+        else
+        {
+            NavigableSet<Clustering<?>> clusterings = createClustering(options);
+
+            // If some of the restrictions were unspecified (e.g. empty IN restrictions) we do not need to do anything.
+            if (restrictions.hasClusteringColumnsRestrictions() && clusterings.isEmpty())
+                return;
+
+            UpdateParameters params = makeUpdateParameters(keys, clusterings, options, local, timestamp, nowInSeconds, queryStartNanoTime);
+
+            for (ByteBuffer key : keys)
             {
-                NavigableSet<Clustering<?>> clusterings = createClustering(options);
+                Validation.validateKey(metadata(), key);
+                DecoratedKey dk = metadata().partitioner.decorateKey(key);
 
-                // If some of the restrictions were unspecified (e.g. empty IN restrictions) we do not need to do anything.
-                if (restrictions.hasClusteringColumnsRestrictions() && clusterings.isEmpty())
-                    return;
+                PartitionUpdate.Builder updateBuilder = collector.getPartitionUpdateBuilder(metadata(), dk, options.getConsistency());
 
-                UpdateParameters params = makeUpdateParameters(keys, clusterings, options, local, timestamp, nowInSeconds, queryStartNanoTime);
-
-                for (ByteBuffer key : keys)
+                if (!restrictions.hasClusteringColumnsRestrictions())
                 {
-                    Validation.validateKey(metadata(), key);
-                    DecoratedKey dk = metadata().partitioner.decorateKey(key);
-
-                    PartitionUpdate.Builder updateBuilder = collector.getPartitionUpdateBuilder(metadata(), dk, options.getConsistency());
-
-                    if (!restrictions.hasClusteringColumnsRestrictions())
+                    addUpdateForKey(updateBuilder, Clustering.EMPTY, params);
+                }
+                else
+                {
+                    for (Clustering<?> clustering : clusterings)
                     {
-                        addUpdateForKey(updateBuilder, Clustering.EMPTY, params);
-                    }
-                    else
-                    {
-                        for (Clustering<?> clustering : clusterings)
-                        {
-                            validateClustering(clustering);
-                            addUpdateForKey(updateBuilder, clustering, params);
-                        }
+                        validateClustering(clustering);
+                        addUpdateForKey(updateBuilder, clustering, params);
                     }
                 }
             }
         }
-        finally
-        {
-            cqlLogger.trace("{}.{} - finished", getClass().getSimpleName(), "addUpdates");
-        }
+        cqlLogger.trace("{}.{} - finished", getClass().getSimpleName(), "addUpdates");
     }
 
     private <V> void validateClustering(Clustering<V> clustering)
