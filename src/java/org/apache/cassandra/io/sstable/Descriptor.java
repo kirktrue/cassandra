@@ -244,6 +244,15 @@ public class Descriptor
         if (!file.isAbsolute())
             file = file.getAbsoluteFile();
 
+        try
+        {
+            file = file.getCanonicalFile();
+        }
+        catch (IOException e)
+        {
+            throw new IllegalArgumentException(e);
+        }
+
         String name = file.getName();
         List<String> tokens = filenameSplitter.splitToList(name);
         int size = tokens.size();
