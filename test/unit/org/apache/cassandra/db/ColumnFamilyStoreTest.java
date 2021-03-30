@@ -22,9 +22,13 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -33,10 +37,14 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.apache.cassandra.db.streaming.CassandraStreamReader;
+import org.apache.cassandra.io.sstable.format.SSTableWriter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -503,5 +511,43 @@ public class ColumnFamilyStoreTest
         List<File> ssTableFiles = new Directories(cfs.metadata()).sstableLister(Directories.OnTxnErr.THROW).listFiles();
         assertNotNull(ssTableFiles);
         assertEquals(0, ssTableFiles.size());
+    }
+
+    @Test
+    public void testSymlink()
+    throws Exception
+    {
+        ColumnFamilyStore cfs = Keyspace.open(KEYSPACE1).getColumnFamilyStore(CF_STANDARD1);
+
+        ColumnFamilyStore.scrubDataDirectories(cfs.metadata());
+
+        new RowUpdateBuilder(cfs.metadata(), 2, "key").clustering("name").add("val", "2").build().applyUnsafe();
+        cfs.forceBlockingFlush();
+
+        // Nuke the metadata and reload that sstable
+        Collection<SSTableReader> ssTables = cfs.getLiveSSTables();
+        assertEquals(1, ssTables.size());
+        SSTableReader ssTable = ssTables.iterator().next();
+
+        String dataFileName = ssTable.descriptor.filenameFor(Component.DATA);
+        System.out.println(dataFileName);
+
+        String linkKeyspaceDir = "/tmp/cassandra-test/data/AnotherDisk";
+
+        {
+            File targetKeyspaceDir = new File(dataFileName).getParentFile();
+            Path targetKeyspacePath = Paths.get(targetKeyspaceDir.getAbsolutePath());
+            Path linkKeyspacePath = Paths.get(linkKeyspaceDir, targetKeyspaceDir.getName());
+            Files.deleteIfExists(linkKeyspacePath);
+            Files.createDirectories(linkKeyspacePath.getParent());
+            Files.createSymbolicLink(linkKeyspacePath, targetKeyspacePath);
+        }
+
+        {
+            File targetFile = new File(dataFileName);
+            Path link = Paths.get(linkKeyspaceDir, targetFile.getParentFile().getName(), targetFile.getName());
+            Descriptor d = Descriptor.fromFilename(link.toFile());
+            System.out.println(d);
+        }
     }
 }
