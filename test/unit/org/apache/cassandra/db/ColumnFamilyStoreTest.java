@@ -548,6 +548,8 @@ public class ColumnFamilyStoreTest
             Path link = Paths.get(linkKeyspaceDir, targetFile.getParentFile().getName(), targetFile.getName());
             Descriptor d = Descriptor.fromFilename(link.toFile());
             System.out.println(d);
+
+            assertEquals(KEYSPACE1, d.ksname);
         }
     }
 }
